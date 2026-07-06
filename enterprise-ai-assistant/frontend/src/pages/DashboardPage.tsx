@@ -1,40 +1,77 @@
-import React, { useState, useEffect } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 import {
-  LineChart,
+  Area,
+  AreaChart,
+  CartesianGrid,
+  Cell,
+  Legend,
   Line,
+  LineChart,
+  Pie,
+  PieChart,
+  ResponsiveContainer,
+  Tooltip,
   XAxis,
   YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-  AreaChart,
-  Area,
-  BarChart,
-  Bar,
-  Legend,
 } from 'recharts'
 import {
   DollarSign,
-  ShoppingCart,
-  Users,
-  TrendingUp,
-  TrendingDown,
   RefreshCw,
+  ShoppingCart,
+  TrendingDown,
+  TrendingUp,
+  Users,
 } from 'lucide-react'
-import { getDashboardData, generateMockData } from '../services/dashboard'
-import type { DashboardResponse, SalesTrendItem } from '../types'
+import {
+  getCategoryStats,
+  getSummary,
+  getTrend,
+  generateMockData,
+} from '../services/dashboard'
+import type {
+  CategoryStatsResponse,
+  DashboardSummary,
+  SalesTrendItemV2,
+} from '../types'
 
+/**
+ * Dashboard 数据分析页
+ *
+ * P1 升级：
+ * 1. 顶部四张统计卡片（总销售额 / 总订单数 / 总客户数 / 销售增长率）
+ * 2. 中部四张 Recharts 图表：销售额趋势（Area）/ 订单趋势（Line）/ 用户增长（Line）/ 产品分类占比（Pie）
+ * 3. 顶部支持 7/30/90 天切换
+ * 4. 保留"生成模拟数据"按钮
+ */
 const DashboardPage: React.FC = () => {
-  const [data, setData] = useState<DashboardResponse | null>(null)
+  // 汇总数据
+  const [summary, setSummary] = useState<DashboardSummary | null>(null)
+  // 趋势数据（按天）
+  const [trend, setTrend] = useState<SalesTrendItemV2[]>([])
+  // 产品分类统计
+  const [categoryStats, setCategoryStats] = useState<CategoryStatsResponse | null>(null)
+  // 加载状态
   const [loading, setLoading] = useState(true)
-  const [days, setDays] = useState(30)
+  // 模拟数据生成状态
   const [generating, setGenerating] = useState(false)
+  // 时间窗口（7/30/90 天）
+  const [days, setDays] = useState(30)
 
-  const fetchData = async () => {
+  /**
+   * 并行拉取汇总、趋势、分类数据
+   * 任何一个失败都不影响其他数据展示
+   */
+  const fetchData = async (windowDays: number) => {
     setLoading(true)
     try {
-      const result = await getDashboardData(days)
-      setData(result)
+      const [summaryRes, trendRes, categoryRes] = await Promise.all([
+        getSummary(),
+        getTrend(windowDays),
+        getCategoryStats(),
+      ])
+      setSummary(summaryRes)
+      setTrend(trendRes || [])
+      setCategoryStats(categoryRes)
     } catch (error) {
       console.error('获取 Dashboard 数据失败:', error)
     } finally {
@@ -42,15 +79,20 @@ const DashboardPage: React.FC = () => {
     }
   }
 
+  // days 切换时重新拉取
   useEffect(() => {
-    fetchData()
+    fetchData(days)
   }, [days])
 
+  /**
+   * 生成模拟数据按钮
+   * 重新生成 90 天数据后再拉取一次，让图表立刻反映新数据
+   */
   const handleGenerateMockData = async () => {
     setGenerating(true)
     try {
       await generateMockData(90)
-      await fetchData()
+      await fetchData(days)
     } catch (error) {
       console.error('生成模拟数据失败:', error)
     } finally {
@@ -58,6 +100,7 @@ const DashboardPage: React.FC = () => {
     }
   }
 
+  // 数字格式化：>= 1万 时显示 X.XX 万
   const formatNumber = (num: number) => {
     if (num >= 10000) {
       return (num / 10000).toFixed(2) + '万'
@@ -65,33 +108,60 @@ const DashboardPage: React.FC = () => {
     return num.toLocaleString()
   }
 
+  // 货币格式化
   const formatCurrency = (num: number) => {
     return '¥' + formatNumber(num)
   }
 
-  // 计算增长率
-  const calculateGrowthRate = () => {
-    if (!data || data.trend.length < 2) return 0
-    const firstHalf = data.trend.slice(0, Math.floor(data.trend.length / 2))
-    const secondHalf = data.trend.slice(Math.floor(data.trend.length / 2))
-    const firstAvg = firstHalf.reduce((sum, item) => sum + item.revenue, 0) / firstHalf.length
-    const secondAvg = secondHalf.reduce((sum, item) => sum + item.revenue, 0) / secondHalf.length
+  /**
+   * 计算销售增长率
+   * 趋势数据前半段 vs 后半段的平均值对比
+   */
+  const growthRate = useMemo(() => {
+    if (!trend || trend.length < 2) return 0
+    const mid = Math.floor(trend.length / 2)
+    if (mid === 0) return 0
+    const firstHalf = trend.slice(0, mid)
+    const secondHalf = trend.slice(mid)
+    const firstAvg =
+      firstHalf.reduce((sum, item) => sum + item.revenue, 0) / firstHalf.length
+    const secondAvg =
+      secondHalf.reduce((sum, item) => sum + item.revenue, 0) / secondHalf.length
     if (firstAvg === 0) return 0
     return ((secondAvg - firstAvg) / firstAvg) * 100
-  }
+  }, [trend])
 
-  const growthRate = calculateGrowthRate()
+  /**
+   * 趋势图数据：把 date 截短为月-日，方便 X 轴展示
+   */
+  const trendChartData = useMemo(
+    () =>
+      trend.map((item) => ({
+        ...item,
+        // 后端返回 YYYY-MM-DD，前端只显示 MM-DD
+        displayDate: item.date ? item.date.slice(5) : '',
+      })),
+    [trend]
+  )
 
-  // 格式化图表数据
-  const chartData = data?.trend.map((item: SalesTrendItem) => ({
-    ...item,
-    date: item.date.slice(5), // 只显示月-日
-  }))
+  /**
+   * 饼图数据：使用 product_category 聚合结果
+   * 配色：固定 6 色的循环数组
+   */
+  const PIE_COLORS = ['#3b82f6', '#10b981', '#8b5cf6', '#f59e0b', '#ef4444', '#06b6d4']
+  const pieData = useMemo(() => {
+    if (!categoryStats || !categoryStats.items) return []
+    return categoryStats.items.map((item) => ({
+      name: item.category,
+      value: item.revenue,
+    }))
+  }, [categoryStats])
 
+  // 顶部四个统计卡片的配置
   const statCards = [
     {
       title: '总销售额',
-      value: formatCurrency(data?.stats.total_revenue || 0),
+      value: formatCurrency(summary?.total_revenue || 0),
       icon: DollarSign,
       color: 'bg-blue-500',
       bgColor: 'bg-blue-50',
@@ -99,15 +169,15 @@ const DashboardPage: React.FC = () => {
     },
     {
       title: '总订单数',
-      value: formatNumber(data?.stats.total_orders || 0),
+      value: formatNumber(summary?.total_orders || 0),
       icon: ShoppingCart,
       color: 'bg-green-500',
       bgColor: 'bg-green-50',
       textColor: 'text-green-600',
     },
     {
-      title: '客户数量',
-      value: formatNumber(data?.stats.total_customers || 0),
+      title: '总客户数',
+      value: formatNumber(summary?.total_customers || 0),
       icon: Users,
       color: 'bg-purple-500',
       bgColor: 'bg-purple-50',
@@ -123,6 +193,7 @@ const DashboardPage: React.FC = () => {
     },
   ]
 
+  // 加载态
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -133,7 +204,7 @@ const DashboardPage: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      {/* 页面标题 */}
+      {/* 页面标题 + 日期下拉 + 生成模拟数据按钮 */}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">数据看板</h1>
@@ -160,7 +231,7 @@ const DashboardPage: React.FC = () => {
         </div>
       </div>
 
-      {/* 统计卡片 */}
+      {/* 顶部四个统计卡片 */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         {statCards.map((card, index) => {
           const Icon = card.icon
@@ -185,14 +256,14 @@ const DashboardPage: React.FC = () => {
         })}
       </div>
 
-      {/* 图表区域 */}
+      {/* 图表区：四张图，2x2 排版 */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* 销售额趋势图 */}
+        {/* 1. 销售额趋势：AreaChart，蓝色 */}
         <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
           <h3 className="text-lg font-semibold text-gray-900 mb-4">销售额趋势</h3>
           <div className="h-80">
             <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={chartData}>
+              <AreaChart data={trendChartData}>
                 <defs>
                   <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
                     <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.3} />
@@ -200,10 +271,21 @@ const DashboardPage: React.FC = () => {
                   </linearGradient>
                 </defs>
                 <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                <XAxis dataKey="date" tick={{ fontSize: 12 }} stroke="#9ca3af" />
-                <YAxis tick={{ fontSize: 12 }} stroke="#9ca3af" tickFormatter={(value) => value / 1000 + 'k'} />
+                <XAxis
+                  dataKey="displayDate"
+                  tick={{ fontSize: 12 }}
+                  stroke="#9ca3af"
+                />
+                <YAxis
+                  tick={{ fontSize: 12 }}
+                  stroke="#9ca3af"
+                  tickFormatter={(value) => Number(value) / 1000 + 'k'}
+                />
                 <Tooltip
-                  formatter={(value: number) => ['¥' + value.toLocaleString(), '销售额']}
+                  formatter={(value: number) => [
+                    '¥' + Number(value).toLocaleString(),
+                    '销售额',
+                  ]}
                   contentStyle={{
                     borderRadius: '8px',
                     border: '1px solid #e5e7eb',
@@ -223,23 +305,27 @@ const DashboardPage: React.FC = () => {
           </div>
         </div>
 
-        {/* 订单数与客户数对比 */}
+        {/* 2. 订单趋势：LineChart，绿色 monotone */}
         <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">订单与客户趋势</h3>
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">订单趋势</h3>
           <div className="h-80">
             <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={chartData}>
+              <LineChart data={trendChartData}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                <XAxis dataKey="date" tick={{ fontSize: 12 }} stroke="#9ca3af" />
+                <XAxis
+                  dataKey="displayDate"
+                  tick={{ fontSize: 12 }}
+                  stroke="#9ca3af"
+                />
                 <YAxis tick={{ fontSize: 12 }} stroke="#9ca3af" />
                 <Tooltip
+                  formatter={(value: number) => [value.toLocaleString(), '订单数']}
                   contentStyle={{
                     borderRadius: '8px',
                     border: '1px solid #e5e7eb',
                     boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
                   }}
                 />
-                <Legend />
                 <Line
                   type="monotone"
                   dataKey="orders"
@@ -247,6 +333,32 @@ const DashboardPage: React.FC = () => {
                   stroke="#10b981"
                   strokeWidth={2}
                   dot={false}
+                />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+
+        {/* 3. 用户增长趋势：LineChart，紫色 monotone */}
+        <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">用户增长趋势</h3>
+          <div className="h-80">
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart data={trendChartData}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                <XAxis
+                  dataKey="displayDate"
+                  tick={{ fontSize: 12 }}
+                  stroke="#9ca3af"
+                />
+                <YAxis tick={{ fontSize: 12 }} stroke="#9ca3af" />
+                <Tooltip
+                  formatter={(value: number) => [value.toLocaleString(), '客户数']}
+                  contentStyle={{
+                    borderRadius: '8px',
+                    border: '1px solid #e5e7eb',
+                    boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
+                  }}
                 />
                 <Line
                   type="monotone"
@@ -261,26 +373,55 @@ const DashboardPage: React.FC = () => {
           </div>
         </div>
 
-        {/* 每日销售额柱状图 */}
-        <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100 lg:col-span-2">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">每日销售详情</h3>
-          <div className="h-72">
-            <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={chartData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-              <XAxis dataKey="date" tick={{ fontSize: 12 }} stroke="#9ca3af" />
-              <YAxis tick={{ fontSize: 12 }} stroke="#9ca3af" tickFormatter={(value) => value / 1000 + 'k'} />
-              <Tooltip
-                formatter={(value: number) => ['¥' + value.toLocaleString(), '销售额']}
-                contentStyle={{
-                  borderRadius: '8px',
-                  border: '1px solid #e5e7eb',
-                  boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
-                }}
-              />
-              <Bar dataKey="revenue" fill="#3b82f6" radius={[4, 4, 0, 0]} />
-            </BarChart>
-            </ResponsiveContainer>
+        {/* 4. 产品分类占比：PieChart，多色扇形 + Tooltip 显示百分比 */}
+        <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">产品分类占比</h3>
+          <div className="h-80">
+            {pieData.length === 0 ? (
+              <div className="h-full flex items-center justify-center text-gray-400 text-sm">
+                暂无产品分类数据，请先生成模拟数据
+              </div>
+            ) : (
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie
+                    data={pieData}
+                    dataKey="value"
+                    nameKey="name"
+                    cx="50%"
+                    cy="50%"
+                    outerRadius={100}
+                    label={(entry) => `${entry.name}`}
+                  >
+                    {pieData.map((_, index) => (
+                      <Cell
+                        key={`cell-${index}`}
+                        fill={PIE_COLORS[index % PIE_COLORS.length]}
+                      />
+                    ))}
+                  </Pie>
+                  <Tooltip
+                    formatter={(value: number, name: string) => {
+                      const total = pieData.reduce(
+                        (sum, item) => sum + item.value,
+                        0
+                      )
+                      const pct =
+                        total > 0
+                          ? ((value / total) * 100).toFixed(2) + '%'
+                          : '0%'
+                      return [`¥${Number(value).toLocaleString()} (${pct})`, name]
+                    }}
+                    contentStyle={{
+                      borderRadius: '8px',
+                      border: '1px solid #e5e7eb',
+                      boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
+                    }}
+                  />
+                  <Legend />
+                </PieChart>
+              </ResponsiveContainer>
+            )}
           </div>
         </div>
       </div>

@@ -58,6 +58,10 @@ class Sale(Base):
     revenue = Column(Float, nullable=False, default=0.0, comment="销售额")
     orders = Column(Integer, nullable=False, default=0, comment="订单数")
     customers = Column(Integer, nullable=False, default=0, comment="客户数")
+    # P1 扩展：新增销售区域与产品分类两个可空字段
+    # nullable=True 保证历史数据与旧接口的兼容性
+    region = Column(String(50), nullable=True, comment="销售区域")
+    product_category = Column(String(50), nullable=True, comment="产品分类")
 
     def __repr__(self):
         return f"<Sale(id={self.id}, date={self.date}, revenue={self.revenue})>"

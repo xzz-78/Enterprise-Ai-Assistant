@@ -164,6 +164,30 @@ class ChatService:
             "sources": sources
         }
 
+    def chat_with_sources_v2(self, question: str, k: int = 4) -> dict:
+        """
+        升级版带来源问答
+        返回 {"answer": str, "sources": [{filename, document_id, score, content}]}
+        知识库为空时 sources=[], answer="知识库为空，请先上传文档。"
+        """
+        sources = vector_store_service.search_with_sources(question, k=k)
+        if not sources:
+            return {
+                "answer": "知识库为空，请先上传文档后再提问。",
+                "sources": []
+            }
+        context_parts = [
+            f"[文档 {i+1} - {s['filename']}]:\n{s['content']}"
+            for i, s in enumerate(sources)
+        ]
+        context = "\n\n".join(context_parts)
+        prompt = self.PROMPT.format(context=context, question=question)
+        response = self.llm.invoke(prompt)
+        return {
+            "answer": response.content,
+            "sources": sources
+        }
+
 
 # 全局聊天服务实例
 chat_service = ChatService()
