@@ -41,7 +41,7 @@ class ReportService:
         Returns:
             List[Sale]: 销售数据列表
         """
-        end_date = date.today()
+        end_date = db.query(func.max(Sale.date)).scalar()
         start_date = end_date - timedelta(days=days - 1)
 
         sales = db.query(Sale).filter(
