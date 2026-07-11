@@ -223,3 +223,23 @@ yarn dev
 ## 许可证
 
 MIT License
+
+## 🐳 Docker 一键启动
+
+确保本机已安装 Docker 与 Docker Compose，然后：
+
+```bash
+# 1. 复制环境变量模板
+cp .env.example .env
+# 编辑 .env 填入 OPENAI_API_KEY
+
+# 2. 一键启动
+docker compose up -d
+
+# 3. 访问
+# 前端: http://localhost:5173
+# 后端: http://localhost:8000/docs
+# MySQL: localhost:3306 (user=eai password=eaipass)
+```
+
+默认账号：`admin` / `admin123`

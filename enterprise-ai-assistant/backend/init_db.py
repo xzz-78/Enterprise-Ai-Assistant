@@ -11,7 +11,12 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from app.core.database import Base, engine, SessionLocal
 from app.models import User, Document, Sale
 from app.core.security import get_password_hash
-from app.services.dashboard_service import generate_mock_sales_data
+# P1 扩展：导入默认的 region/category 列表，确保模拟数据覆盖分析维度
+from app.services.dashboard_service import (
+    generate_mock_sales_data,
+    DEFAULT_REGIONS,
+    DEFAULT_CATEGORIES,
+)
 
 
 def init_database():
@@ -75,8 +80,14 @@ def init_database():
         # 检查是否已有数据
         count = db.query(Sale).count()
         if count == 0:
-            data_count = generate_mock_sales_data(db, days=90)
-            print(f"   ✓ 成功生成 {data_count} 条模拟销售数据")
+            # P1 扩展：传入默认 region/category 列表，让模拟数据自带分析维度
+            data_count = generate_mock_sales_data(
+                db,
+                days=90,
+                regions=DEFAULT_REGIONS,
+                categories=DEFAULT_CATEGORIES,
+            )
+            print(f"   ✓ 成功生成 {data_count} 条模拟销售数据（含 region/product_category）")
         else:
             print(f"   - 已有 {count} 条销售数据，跳过生成")
     except Exception as e:

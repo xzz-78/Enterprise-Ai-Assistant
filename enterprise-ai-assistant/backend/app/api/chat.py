@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 from app.core.database import get_db
 from app.core.security import get_current_active_user
 from app.models import User
-from app.schemas import ChatRequest, ChatResponse
+from app.schemas import ChatRequest, ChatResponse, ChatWithSourcesResponse
 from app.services.chat_service import chat_service
 
 router = APIRouter(prefix="/chat", tags=["AI问答"])
@@ -52,6 +52,23 @@ def chat_with_sources(
     try:
         result = chat_service.chat_with_sources(request.question)
         return result
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"AI 回答生成失败: {str(e)}"
+        )
+
+
+@router.post("/with-sources-v2", response_model=ChatWithSourcesResponse, summary="AI 问答（带来源 V2）")
+def chat_with_sources_v2(
+    request: ChatRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
+):
+    """带来源的 RAG 问答 V2，返回结构化 sources 列表"""
+    try:
+        from app.services.chat_service import chat_service
+        return chat_service.chat_with_sources_v2(request.question)
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,

@@ -71,6 +71,35 @@ export interface DashboardResponse {
   trend: SalesTrendItem[]
 }
 
+// P1 扩展：拆分端点对应的前端类型
+// 与后端 DashboardSummaryResponse / SalesTrendItemV2 / CategoryStatsResponse 对齐
+export interface DashboardSummary {
+  total_revenue: number
+  total_orders: number
+  total_customers: number
+}
+
+export interface SalesTrendItemV2 {
+  order_date: string
+  date: string
+  revenue: number
+  orders: number
+  customers: number
+  region: string | null
+}
+
+export interface CategoryStat {
+  category: string
+  revenue: number
+  orders: number
+  customers: number
+}
+
+export interface CategoryStatsResponse {
+  total: number
+  items: CategoryStat[]
+}
+
 // 报告相关类型
 export interface ReportDataSummary {
   total_revenue: number
@@ -88,4 +117,30 @@ export interface ReportResponse {
 
 export interface ReportRequest {
   days: number
+}
+
+// P2 扩展：AI 业务分析师（三段式报告）类型
+// 与后端 ReportGenerateRequest / BusinessInsightReport 对齐
+export interface ReportGenerateRequest {
+  days: number
+}
+
+export interface BusinessInsightReport {
+  summary: string
+  insights: string[]
+  suggestions: string[]
+}
+
+// P3 扩展：RAG 带来源问答类型
+// 与后端 SourceItem / ChatWithSourcesResponse 对齐
+export interface SourceItem {
+  filename: string
+  document_id: number
+  score: number
+  content: string
+}
+
+export interface ChatWithSourcesResponse {
+  answer: string
+  sources: SourceItem[]
 }

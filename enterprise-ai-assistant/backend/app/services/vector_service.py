@@ -5,7 +5,7 @@
 """
 import os
 import pickle
-from typing import List, Optional, Tuple
+from typing import List, Optional, Tuple, Dict
 
 import numpy as np
 import faiss
@@ -194,6 +194,36 @@ class VectorStoreService:
         # 获取所有文档（简化处理，实际可能需要更复杂的逻辑）
         # 对于小型项目，可以接受全量重建
         pass
+
+    def search_with_sources(self, query: str, k: int = 4) -> List[Dict]:
+        """
+        带元数据与归一化分数的相似度检索
+
+        返回: [{
+            "filename": str,        # 来自 metadata['filename']
+            "document_id": int,     # 来自 metadata['document_id']
+            "score": float,         # 归一化到 [0, 1]，保留 4 位小数
+            "content": str          # 文档 page_content
+        }]
+
+        归一化策略：FAISS L2 距离转相似度 = 1 / (1 + distance)
+        """
+        if self.vector_store is None:
+            return []
+        raw = self.vector_store.similarity_search_with_score(query, k=k)
+        results = []
+        for doc, distance in raw:
+            meta = doc.metadata or {}
+            # 距离转相似度
+            score = 1.0 / (1.0 + float(distance))
+            score = round(score, 2)
+            results.append({
+                "filename": meta.get("filename", "unknown"),
+                "document_id": int(meta.get("document_id", 0)),
+                "score": score,
+                "content": doc.page_content,
+            })
+        return results
 
 
 # 全局向量存储服务实例

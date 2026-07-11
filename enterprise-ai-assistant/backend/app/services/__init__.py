@@ -19,6 +19,10 @@ from app.services.dashboard_service import (
     get_sales_trend,
     get_dashboard_data,
     generate_mock_sales_data,
+    # P1 扩展：新增的三个纯函数
+    get_summary,
+    get_trend,
+    get_category_stats,
 )
 
 __all__ = [
@@ -35,4 +39,8 @@ __all__ = [
     "get_sales_trend",
     "get_dashboard_data",
     "generate_mock_sales_data",
+    # P1 扩展：导出新增的三个 dashboard 纯函数
+    "get_summary",
+    "get_trend",
+    "get_category_stats",
 ]

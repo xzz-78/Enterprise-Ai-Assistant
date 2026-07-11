@@ -1,0 +1,4 @@
+# Docker
+.env
+data/
+mysql_data/
