@@ -38,7 +38,11 @@ def allowed_file(filename: str) -> bool:
     Returns:
         bool: 是否允许上传
     """
-    allowed_extensions = {"pdf", "txt"}
+    allowed_extensions = {
+        "pdf", "txt", "md", "markdown",
+        "docx", "doc", "pptx", "ppt", "xlsx", "xls", "csv",
+        "html", "htm", "epub", "rtf", "odt",
+    }
     return get_file_extension(filename) in allowed_extensions
 
 
@@ -268,15 +272,17 @@ def delete_document(db: Session, doc_id: int, user_id: int) -> bool:
     db.delete(document)
     db.commit()
 
+    # 从向量存储中删除
+    try:
+        vector_store_service.delete_by_metadata({"document_id": document.id})
+    except Exception:
+        pass
+
     # 删除磁盘文件
     if os.path.exists(file_path):
         try:
             os.remove(file_path)
         except OSError:
-            pass  # 文件删除失败不影响主流程
-
-    # 注意：FAISS 索引中的向量需要重建才能完全移除
-    # 对于演示项目，这是可以接受的
-    # 生产环境建议使用支持删除操作的向量数据库
+            pass
 
     return True
