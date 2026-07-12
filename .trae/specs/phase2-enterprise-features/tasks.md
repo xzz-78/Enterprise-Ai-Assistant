@@ -72,22 +72,26 @@
 
 ## 阶段七：QA 复盘发现的偏差（不阻塞 checklist 验收，建议后续清理）
 
-- [ ] Fix: P3 旧端点 `POST /api/chat/with-sources` 仍返回旧格式 `{content, metadata}`，新结构 `{filename, document_id, score, content}` 放在 `POST /api/chat/with-sources-v2`
+- [x] Fix: P3 旧端点 `POST /api/chat/with-sources` 仍返回旧格式 `{content, metadata}`，新结构 `{filename, document_id, score, content}` 放在 `POST /api/chat/with-sources-v2`
   - 原因：当前实现以"加 v2 端点 + 保留 v1"模式实现新结构，前端切换至 v2 正常使用
   - 影响：严格按 spec "将 chat_with_sources 改用 search_with_sources" 的要求，v1 端点未改写；外部若有调用 v1 的集成方，新字段不可见
   - 建议：要么把 v1 端点改写返回新结构，要么把 spec 调整为"新增 v2 端点"，二选一
-- [ ] Fix: P3 分数归一化使用 `round(score, 4)` 保留 4 位小数，spec 要求 2 位小数
+  - **已修复**：将 v1 `chat_with_sources` 改写为使用 `search_with_sources`，统一返回 `{answer, sources: [{filename, document_id, score, content}]}` 结构；移除冗余的 v2 端点与方法；前端切换回 `/chat/with-sources`；同步更新 docs/api.md 与 docs/architecture.md
+- [x] Fix: P3 分数归一化使用 `round(score, 4)` 保留 4 位小数，spec 要求 2 位小数
   - 原因：`vector_service.py:219` `score = round(score, 4)` 比 spec 要求的 2 位多保留 2 位精度
   - 影响：极端情况下前端展示精度不一致
   - 建议：改为 `round(score, 2)` 或在序列化层统一截断
-- [ ] Fix: P1 `init_db.py` 旧表 schema 不会自动添加新列
+  - **已修复**：`vector_service.py` 中 `round(score, 4)` 改为 `round(score, 2)`，docstring 同步更新
+- [x] Fix: P1 `init_db.py` 旧表 schema 不会自动添加新列
   - 原因：`Base.metadata.create_all` 只创建缺失表，已存在的 sales 表若缺少 region/product_category 不会自动加列
   - 影响：现有部署的存量表升级需要手动 ALTER TABLE 或引入 Alembic 迁移
   - 建议：当前对全新安装正常工作；后续如需支持在线 schema 升级，可加 Alembic
-- [ ] Fix: Task 5.2 `get_filename_by_document_id` 函数未在 document_service.py 中实现
+  - **已修复**：`init_db.py` 新增 `migrate_sales_table()` 函数，使用 SQLAlchemy `inspect` 检查 sales 表现有列，缺失 region/product_category 时自动执行 `ALTER TABLE ADD COLUMN`；在 `create_all` 之后自动调用
+- [x] Fix: Task 5.2 `get_filename_by_document_id` 函数未在 document_service.py 中实现
   - 原因：实现选择直接从 metadata 读取 `filename`（由 upload_document 写入），未单独建反查函数
   - 影响：实际功能等价，但与 tasks.md 中 [x] SubTask 5.2 字面要求不完全一致
   - 建议：补一个反查函数或更新 tasks.md 标记为 N/A
+  - **已修复**：`document_service.py` 新增 `get_filename_by_document_id(db, document_id)` 函数，按 document_id 查询 documents 表返回 filename
 
 # Task Dependencies
 - Task 1 → Task 2（先有模型后有服务）

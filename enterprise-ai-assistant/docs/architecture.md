@@ -124,7 +124,7 @@ sequenceDiagram
     rect rgb(255, 245, 235)
     Note over U,AI: 场景 3：RAG 问答
     U->>FE: 输入问题 question
-    FE->>BE: POST /api/chat/with-sources-v2 { question }
+    FE->>BE: POST /api/chat/with-sources { question }
     BE->>VS: similarity_search_with_score(question, k=4)
     VS-->>BE: [(doc, distance), ...]
     BE->>BE: 归一化分数 1/(1+d) 并构建 context

@@ -419,7 +419,7 @@ class VectorStoreService:
         返回: [{
             "filename": str,        # 来自 metadata['filename']
             "document_id": int,     # 来自 metadata['document_id']
-            "score": float,         # 归一化到 [0, 1]，保留 4 位小数
+            "score": float,         # 归一化到 [0, 1]，保留 2 位小数
             "content": str          # 文档 page_content
         }]
 
@@ -432,7 +432,7 @@ class VectorStoreService:
         for doc, distance in raw:
             meta = doc.metadata or {}
             score = 1.0 / (1.0 + float(distance))
-            score = round(score, 4)
+            score = round(score, 2)
             results.append({
                 "filename": meta.get("filename", "unknown"),
                 "document_id": int(meta.get("document_id", 0)),

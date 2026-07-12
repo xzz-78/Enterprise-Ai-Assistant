@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react'
 import { Send, Bot, User, Loader2, FileText, BarChart2 } from 'lucide-react'
-import { chat as chatApi, chatWithSourcesV2 } from '../services/chat'
+import { chat as chatApi, chatWithSources } from '../services/chat'
 import type { ChatMessage, SourceItem } from '../types'
 
 interface ExtendedChatMessage extends ChatMessage {
@@ -46,8 +46,8 @@ const ChatPage: React.FC = () => {
 
     try {
       if (showSources) {
-        // P3：使用带来源 V2 接口
-        const response = await chatWithSourcesV2(question)
+        // P3：使用带来源接口
+        const response = await chatWithSources(question)
         const assistantMessage: ExtendedChatMessage = {
           role: 'assistant',
           content: response.answer,

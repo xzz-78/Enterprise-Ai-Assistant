@@ -437,6 +437,26 @@ def get_document_by_id(db: Session, doc_id: int, user_id: Optional[int] = None) 
     return query.first()
 
 
+def get_filename_by_document_id(db: Session, document_id: int) -> Optional[str]:
+    """
+    根据文档 ID 反查文件名
+
+    用于 RAG 来源引用时，将向量库 metadata 中的 document_id 映射回可读的文件名。
+    当 metadata 中未写入 filename 时，可通过此函数从 documents 表回查。
+
+    Args:
+        db: 数据库会话
+        document_id: 文档 ID
+
+    Returns:
+        Optional[str]: 文件名，文档不存在时返回 None
+    """
+    document = db.query(Document).filter(Document.id == document_id).first()
+    if document:
+        return document.filename
+    return None
+
+
 def delete_document(db: Session, doc_id: int, user_id: int) -> bool:
     """
     删除文档

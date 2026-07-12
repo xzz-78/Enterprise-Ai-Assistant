@@ -247,11 +247,10 @@ AI 问答，同时返回参考的文档来源。需要认证。
   "answer": "根据公司规定，员工每年享有...",
   "sources": [
     {
-      "content": "员工手册 - 请假制度...",
-      "metadata": {
-        "document_id": 1,
-        "filename": "员工手册.pdf"
-      }
+      "filename": "员工手册.pdf",
+      "document_id": 1,
+      "score": 0.85,
+      "content": "员工手册 - 请假制度..."
     }
   ]
 }

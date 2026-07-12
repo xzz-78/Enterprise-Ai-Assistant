@@ -37,7 +37,7 @@ def chat(
         )
 
 
-@router.post("/with-sources", summary="AI 问答（带来源）")
+@router.post("/with-sources", response_model=ChatWithSourcesResponse, summary="AI 问答（带来源）")
 def chat_with_sources(
     request: ChatRequest,
     db: Session = Depends(get_db),
@@ -48,27 +48,11 @@ def chat_with_sources(
 
     - 返回生成的答案
     - 同时返回检索到的相关文档片段作为参考来源
+    - sources 结构：[{filename, document_id, score, content}]
     """
     try:
         result = chat_service.chat_with_sources(request.question)
         return result
-    except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"AI 回答生成失败: {str(e)}"
-        )
-
-
-@router.post("/with-sources-v2", response_model=ChatWithSourcesResponse, summary="AI 问答（带来源 V2）")
-def chat_with_sources_v2(
-    request: ChatRequest,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_user)
-):
-    """带来源的 RAG 问答 V2，返回结构化 sources 列表"""
-    try:
-        from app.services.chat_service import chat_service
-        return chat_service.chat_with_sources_v2(request.question)
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,

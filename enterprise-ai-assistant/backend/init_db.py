@@ -17,6 +17,38 @@ from app.services.dashboard_service import (
     DEFAULT_REGIONS,
     DEFAULT_CATEGORIES,
 )
+from sqlalchemy import inspect, text
+
+
+def migrate_sales_table():
+    """
+    自动迁移：检查 sales 表是否缺少 region / product_category 列，
+    缺失时通过 ALTER TABLE 补列，保证旧表升级不报错。
+
+    Base.metadata.create_all 只创建缺失的表，不会为已存在的表添加新列，
+    因此存量部署需要此函数做在线 schema 升级。
+    """
+    inspector = inspect(engine)
+    if "sales" not in inspector.get_table_names():
+        return  # 表尚未创建，create_all 会负责建表
+
+    existing_columns = {col["name"] for col in inspector.get_columns("sales")}
+
+    migrations = [
+        ("region", "VARCHAR(50) NULL COMMENT '销售区域'"),
+        ("product_category", "VARCHAR(50) NULL COMMENT '产品分类'"),
+    ]
+
+    added = []
+    with engine.connect() as conn:
+        for col_name, col_def in migrations:
+            if col_name not in existing_columns:
+                conn.execute(text(f"ALTER TABLE sales ADD COLUMN {col_name} {col_def}"))
+                conn.commit()
+                added.append(col_name)
+
+    if added:
+        print(f"   ✓ 自动迁移：已为 sales 表补充列 {', '.join(added)}")
 
 
 def init_database():
@@ -29,6 +61,9 @@ def init_database():
     print("\n1. 创建数据库表...")
     Base.metadata.create_all(bind=engine)
     print("   ✓ 数据库表创建成功")
+
+    # 自动迁移：为旧表补充缺失列（region / product_category）
+    migrate_sales_table()
 
     # 创建默认管理员用户
     print("\n2. 创建默认管理员用户...")

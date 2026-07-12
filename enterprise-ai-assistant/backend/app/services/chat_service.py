@@ -133,7 +133,10 @@ class ChatService:
 
     def chat_with_sources(self, question: str, k: int = 4) -> dict:
         """
-        带来源引用的问答
+        带来源引用的 RAG 问答
+
+        返回 {"answer": str, "sources": [{filename, document_id, score, content}]}
+        知识库为空时 sources=[], answer="知识库为空，请先上传文档。"
 
         Args:
             question: 用户问题
@@ -141,34 +144,6 @@ class ChatService:
 
         Returns:
             dict: 包含 answer 和 sources 的字典
-        """
-        documents = self._retrieve_documents(question, k=k)
-        sources = []
-
-        if documents:
-            context = self._build_context(documents)
-            answer = self._generate_answer(question, context)
-
-            # 提取来源信息
-            for doc in documents:
-                source_info = {
-                    "content": doc.page_content[:200] + "..." if len(doc.page_content) > 200 else doc.page_content,
-                    "metadata": doc.metadata
-                }
-                sources.append(source_info)
-        else:
-            answer = self.chat(question, use_knowledge_base=False)
-
-        return {
-            "answer": answer,
-            "sources": sources
-        }
-
-    def chat_with_sources_v2(self, question: str, k: int = 4) -> dict:
-        """
-        升级版带来源问答
-        返回 {"answer": str, "sources": [{filename, document_id, score, content}]}
-        知识库为空时 sources=[], answer="知识库为空，请先上传文档。"
         """
         sources = vector_store_service.search_with_sources(question, k=k)
         if not sources:
