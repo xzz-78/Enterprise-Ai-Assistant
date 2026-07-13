@@ -208,7 +208,14 @@ const DashboardPage: React.FC = () => {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">数据看板</h1>
-          <p className="mt-1 text-sm text-gray-500">企业销售数据概览与趋势分析</p>
+          <p className="mt-1 text-sm text-gray-500">
+            企业销售数据概览与趋势分析
+            {summary?.last_updated && (
+              <span className="ml-2 text-gray-400">
+                数据更新至 {summary.last_updated}
+              </span>
+            )}
+          </p>
         </div>
         <div className="flex items-center gap-3">
           <select

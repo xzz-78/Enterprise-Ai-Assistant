@@ -77,6 +77,7 @@ export interface DashboardSummary {
   total_revenue: number
   total_orders: number
   total_customers: number
+  last_updated: string | null
 }
 
 export interface SalesTrendItemV2 {

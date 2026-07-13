@@ -135,6 +135,7 @@ class DashboardSummaryResponse(BaseModel):
     total_revenue: float = Field(..., description="总销售额")
     total_orders: int = Field(..., description="总订单数")
     total_customers: int = Field(..., description="总客户数")
+    last_updated: Optional[_Date] = Field(None, description="数据最后更新日期（DB 中最后一条销售记录的日期）")
 
 
 class SalesTrendItemV2(BaseModel):

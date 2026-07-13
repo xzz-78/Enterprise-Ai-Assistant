@@ -101,19 +101,19 @@ def get_dashboard_trend(
     - region 可能为 null（历史数据）
     - 需要登录认证
     """
-    # 直接调用 service 层方法，返回 List[Sale]
+    # 直接调用 service 层方法，返回 List[dict]（含填充的零值日期）
     rows = dashboard_service.get_trend(db, days=days)
-    # 将 ORM 对象转为 SalesTrendItemV2（同时填充 date/order_date 两个字段）
+    # 将字典转为 SalesTrendItemV2（同时填充 date/order_date 两个字段）
     items: List[SalesTrendItemV2] = []
     for row in rows:
         items.append(
             SalesTrendItemV2(
-                order_date=row.date,
-                date=row.date,
-                revenue=row.revenue,
-                orders=row.orders,
-                customers=row.customers,
-                region=row.region,
+                order_date=row["date"],
+                date=row["date"],
+                revenue=row["revenue"],
+                orders=row["orders"],
+                customers=row["customers"],
+                region=row["region"],
             )
         )
     return items

@@ -49,18 +49,32 @@ def get_total_stats(db: Session) -> Tuple[float, int, int]:
 def get_sales_trend(
     db: Session,
     days: int = 30
-) -> List[Sale]:
+) -> List[dict]:
     """
     获取最近 N 天的销售趋势数据
+
+    以数据库中最后一条销售记录的日期为 end_date，
+    向前推 days 天作为查询窗口。如果窗口内某些日期没有数据，
+    会填充零值记录，避免前端折线图出现断点。
 
     Args:
         db: 数据库会话
         days: 天数
 
     Returns:
-        List[Sale]: 按日期排序的销售数据列表
+        List[dict]: 按日期升序的销售数据列表，每条包含：
+            - date: 日期
+            - revenue: 销售额（无数据时为 0.0）
+            - orders: 订单数（无数据时为 0）
+            - customers: 客户数（无数据时为 0）
+            - region: 销售区域（填充的零值记录为 None）
     """
-    end_date = date.today()
+    # end_date 取 DB 中最后一条销售记录的日期，而非 date.today()
+    # 这样即使数据停留在几天前，查询窗口也能正确覆盖有数据的范围
+    end_date = db.query(func.max(Sale.date)).scalar()
+    if end_date is None:
+        return []  # 数据库无数据，返回空列表
+
     start_date = end_date - timedelta(days=days - 1)
 
     sales = db.query(Sale).filter(
@@ -68,7 +82,33 @@ def get_sales_trend(
         Sale.date <= end_date
     ).order_by(Sale.date.asc()).all()
 
-    return sales
+    # 将已有数据按日期建立索引，便于快速查找
+    sales_by_date = {s.date: s for s in sales}
+
+    # 遍历完整日期范围，缺失的日期填充零值，避免前端折线图断裂
+    result: List[dict] = []
+    current = start_date
+    while current <= end_date:
+        sale = sales_by_date.get(current)
+        if sale:
+            result.append({
+                "date": sale.date,
+                "revenue": sale.revenue,
+                "orders": sale.orders,
+                "customers": sale.customers,
+                "region": sale.region,
+            })
+        else:
+            result.append({
+                "date": current,
+                "revenue": 0.0,
+                "orders": 0,
+                "customers": 0,
+                "region": None,
+            })
+        current += timedelta(days=1)
+
+    return result
 
 
 def get_dashboard_data(db: Session, days: int = 30) -> dict:
@@ -107,6 +147,10 @@ def generate_mock_sales_data(
     """
     生成模拟销售数据（用于演示/测试）
 
+    ⚠️ 危险操作：此函数会先执行 db.query(Sale).delete() 清空全表数据！
+    正式上线前务必移除或禁用此函数及其对应的 /generate-mock-data 端点，
+    否则一旦在生产环境被调用，将导致所有真实销售数据被永久删除且无法回滚。
+
     Args:
         db: 数据库会话
         days: 生成数据的天数
@@ -116,7 +160,8 @@ def generate_mock_sales_data(
     Returns:
         int: 生成的记录数量
     """
-    # 先清空现有数据
+    # ⚠️ 危险：db.query(Sale).delete() 会清空 sales 表全部数据，不可回滚！
+    # 仅用于开发/演示环境初始化模拟数据，正式环境绝对禁止调用此函数。
     db.query(Sale).delete()
     db.commit()
 
@@ -178,28 +223,29 @@ def get_summary(db: Session) -> dict:
         db: 数据库会话
 
     Returns:
-        dict: { total_revenue, total_orders, total_customers }
+        dict: { total_revenue, total_orders, total_customers, last_updated }
     """
     total_revenue, total_orders, total_customers = get_total_stats(db)
+    last_updated = db.query(func.max(Sale.date)).scalar()
     return {
         "total_revenue": total_revenue,
         "total_orders": total_orders,
         "total_customers": total_customers,
+        "last_updated": last_updated,
     }
 
 
-def get_trend(db: Session, days: int = 30) -> List[Sale]:
+def get_trend(db: Session, days: int = 30) -> List[dict]:
     """
     获取最近 N 天的销售趋势数据（含 region 字段）
-    复用已有的 get_sales_trend，由于 Sale 模型已新增 region/product_category，
-    ORM 对象天然包含这些字段，无需额外查询
+    复用已有的 get_sales_trend，返回填充了缺失日期的字典列表
 
     Args:
         db: 数据库会话
         days: 天数
 
     Returns:
-        List[Sale]: 按日期升序的销售数据列表
+        List[dict]: 按日期升序的销售数据列表
     """
     return get_sales_trend(db, days=days)
 
