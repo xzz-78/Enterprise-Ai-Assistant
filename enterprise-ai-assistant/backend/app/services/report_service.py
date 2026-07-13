@@ -3,6 +3,7 @@ AI 分析报告服务
 根据销售数据自动生成业务分析报告
 """
 import json
+import logging
 import re
 from datetime import date, timedelta
 from typing import List, Dict, Tuple
@@ -15,22 +16,48 @@ from langchain_core.prompts import PromptTemplate
 from app.core.config import settings
 from app.models import Sale
 
+logger = logging.getLogger(__name__)
+
 
 class ReportService:
     """
     AI 分析报告服务类
     基于销售数据生成智能分析报告
+
+    延迟初始化设计：
+    - __init__ 不创建 LLM 实例
+    - LLM 实例在首次调用时通过 _get_llm() 懒加载创建
+    - 如果 OPENAI_API_KEY 缺失，不会导致应用启动崩溃
     """
 
     def __init__(self):
-        """初始化报告服务"""
-        self.llm = ChatOpenAI(
-            model_name=settings.OPENAI_MODEL,
-            openai_api_key=settings.OPENAI_API_KEY,
-            openai_api_base=settings.OPENAI_API_BASE,
-            temperature=0.4,
-            max_tokens=3000,
-        )
+        """初始化报告服务（延迟初始化模式）"""
+        self._llm = None
+
+    def _get_llm(self) -> ChatOpenAI:
+        """
+        延迟获取 LLM 实例
+
+        首次调用时创建 LLM 实例，后续调用复用。
+
+        Returns:
+            ChatOpenAI: LLM 实例
+
+        Raises:
+            ValueError: 如果 OPENAI_API_KEY 为空
+        """
+        if self._llm is None:
+            if not settings.OPENAI_API_KEY or settings.OPENAI_API_KEY == "sk-your-openai-api-key":
+                raise ValueError("OPENAI_API_KEY 未配置，请在 .env 文件中设置有效的 API Key")
+
+            self._llm = ChatOpenAI(
+                model_name=settings.OPENAI_MODEL,
+                openai_api_key=settings.OPENAI_API_KEY,
+                openai_api_base=settings.OPENAI_API_BASE,
+                temperature=0.4,
+                max_tokens=3000,
+            )
+        return self._llm
 
     def _get_sales_data(self, db: Session, days: int) -> List[Sale]:
         """
@@ -156,7 +183,7 @@ class ReportService:
         )
 
         formatted_prompt = prompt.format(data=sales_data_text, summary=summary)
-        response = self.llm.invoke(formatted_prompt)
+        response = self._get_llm().invoke(formatted_prompt)
 
         return response.content
 
@@ -200,7 +227,7 @@ class ReportService:
         )
 
         formatted_prompt = prompt.format(data=sales_data_text, summary=summary)
-        response = self.llm.invoke(formatted_prompt)
+        response = self._get_llm().invoke(formatted_prompt)
 
         # 解析建议列表
         recommendations = []
@@ -209,7 +236,6 @@ class ReportService:
             # 去掉数字前缀
             if line and (line[0].isdigit() or line.startswith("-")):
                 # 移除 "1. " 或 "- " 前缀
-                import re
                 clean_line = re.sub(r'^[\d\.\-\s]+', '', line).strip()
                 if clean_line:
                     recommendations.append(clean_line)
@@ -298,14 +324,31 @@ class BusinessReportService:
     """
 
     def __init__(self):
-        """初始化 LLM 客户端，使用较低的 temperature 以保证输出稳定"""
-        self.llm = ChatOpenAI(
-            model_name=settings.OPENAI_MODEL,
-            openai_api_key=settings.OPENAI_API_KEY,
-            openai_api_base=settings.OPENAI_API_BASE,
-            temperature=0.3,
-            max_tokens=2000,
-        )
+        """初始化业务分析服务（延迟初始化模式）"""
+        self._llm = None
+
+    def _get_llm(self) -> ChatOpenAI:
+        """
+        延迟获取 LLM 实例
+
+        Returns:
+            ChatOpenAI: LLM 实例
+
+        Raises:
+            ValueError: 如果 OPENAI_API_KEY 为空
+        """
+        if self._llm is None:
+            if not settings.OPENAI_API_KEY or settings.OPENAI_API_KEY == "sk-your-openai-api-key":
+                raise ValueError("OPENAI_API_KEY 未配置，请在 .env 文件中设置有效的 API Key")
+
+            self._llm = ChatOpenAI(
+                model_name=settings.OPENAI_MODEL,
+                openai_api_key=settings.OPENAI_API_KEY,
+                openai_api_base=settings.OPENAI_API_BASE,
+                temperature=0.3,
+                max_tokens=2000,
+            )
+        return self._llm
 
     # ------------------------------------------------------------------ #
     # 第一步：SQL 聚合                                                    #
@@ -339,7 +382,11 @@ class BusinessReportService:
                 - daily_avg_customers: 日均客户数
                 - actual_days: 实际覆盖的天数
         """
-        end_date = date.today()
+        # end_date 取 DB 中最后一条销售记录的日期，与 Dashboard 保持一致
+        # 这样即使数据停留在几天前，分析窗口也能正确覆盖有数据的范围
+        end_date = db.query(func.max(Sale.date)).scalar()
+        if end_date is None:
+            end_date = date.today()
         start_date = end_date - timedelta(days=days - 1)
 
         # 1) 总体聚合：sum(revenue) / sum(orders) / sum(customers) / count(distinct date)
@@ -583,11 +630,11 @@ class BusinessReportService:
         }
 
         try:
-            response = self.llm.invoke(prompt)
+            response = self._get_llm().invoke(prompt)
             content = (response.content or "").strip()
         except Exception as e:  # noqa: BLE001
             # LLM 调用异常时仍返回兜底
-            print(f"[BusinessReportService] LLM invoke failed: {e}")
+            logger.warning(f"LLM invoke failed: {e}")
             return fallback
 
         # 1) 直接解析
@@ -648,7 +695,7 @@ class BusinessReportService:
             # 第一步：SQL 聚合
             agg = self._sql_aggregate(db, days)
         except Exception as e:  # noqa: BLE001
-            print(f"[BusinessReportService] SQL aggregate failed: {e}")
+            logger.warning(f"SQL aggregate failed: {e}")
             return {
                 "summary": "数据库聚合失败，请稍后重试。",
                 "insights": [],
