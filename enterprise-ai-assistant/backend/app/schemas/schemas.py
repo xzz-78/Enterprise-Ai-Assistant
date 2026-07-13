@@ -100,6 +100,7 @@ class ChatRequest(BaseModel):
 class ChatResponse(BaseModel):
     """AI 问答响应 Schema"""
     answer: str = Field(..., description="AI 回答")
+    source: Optional[str] = Field(None, description="回答来源：rag（知识库）| llm（通用知识）| empty_knowledge（知识库为空）")
 
 
 # ============= Dashboard 相关 Schema =============

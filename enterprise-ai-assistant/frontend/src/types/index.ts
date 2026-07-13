@@ -44,6 +44,7 @@ export interface ChatRequest {
 
 export interface ChatResponse {
   answer: string
+  source?: 'rag' | 'llm' | 'empty_knowledge'
 }
 
 export interface ChatMessage {

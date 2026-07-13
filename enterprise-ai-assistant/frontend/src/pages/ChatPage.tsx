@@ -5,6 +5,7 @@ import type { ChatMessage, SourceItem } from '../types'
 
 interface ExtendedChatMessage extends ChatMessage {
   sources?: SourceItem[]
+  source?: 'rag' | 'llm' | 'empty_knowledge'
 }
 
 const ChatPage: React.FC = () => {
@@ -62,6 +63,7 @@ const ChatPage: React.FC = () => {
           role: 'assistant',
           content: response.answer,
           timestamp: new Date(),
+          source: response.source,
         }
         setMessages((prev) => [...prev, assistantMessage])
       }
@@ -216,9 +218,20 @@ const ChatPage: React.FC = () => {
                   renderSources(message.sources)
                 )}
               </div>
-              <p className="mt-1 text-xs text-gray-400">
-                {formatTime(message.timestamp)}
-              </p>
+              <div className="mt-1 flex items-center gap-2">
+                <span className="text-xs text-gray-400">{formatTime(message.timestamp)}</span>
+                {message.role === 'assistant' && message.source && (
+                  <span
+                    className={`text-xs px-2 py-0.5 rounded-full ${
+                      message.source === 'rag'
+                        ? 'bg-blue-100 text-blue-600'
+                        : 'bg-gray-100 text-gray-500'
+                    }`}
+                  >
+                    {message.source === 'rag' ? '基于知识库' : '基于通用知识'}
+                  </span>
+                )}
+              </div>
             </div>
           </div>
         ))}

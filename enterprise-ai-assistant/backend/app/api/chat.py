@@ -28,8 +28,8 @@ def chat(
     - 如果知识库中没有相关内容，会使用通用知识回答
     """
     try:
-        answer = chat_service.chat(request.question)
-        return {"answer": answer}
+        result = chat_service.chat(request.question)
+        return {"answer": result["answer"], "source": result.get("source")}
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
