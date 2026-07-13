@@ -26,6 +26,11 @@ class Settings(BaseSettings):
     # FAISS 配置
     FAISS_INDEX_PATH: str = "./faiss_index"
 
+    # RAG 检索配置
+    RAG_RELEVANCE_THRESHOLD: float = 0.3
+    RAG_MAX_CONTEXT_CHARS: int = 8000
+    RAG_DEFAULT_K: int = 8
+
     # 文件上传配置
     UPLOAD_DIR: str = "./uploads"
     MAX_UPLOAD_SIZE: int = 10485760  # 10MB

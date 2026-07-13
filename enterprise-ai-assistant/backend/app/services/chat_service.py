@@ -88,19 +88,16 @@ class ChatService:
         """
         return vector_store_service.search_with_sources(query, k=k)
 
-    def _build_context(self, documents: List[dict], max_context_chars: int = 8000) -> str:
+    def _build_context(self, documents: List[dict], max_context_chars: int = None) -> str:
         """
         将检索到的文档构建成上下文字符串
 
-        优化策略：
-        1. 相关性阈值过滤：只保留 score >= 0.3 的文档，避免低相关度内容污染回答
-        2. 去重：基于内容哈希去重，避免重复文档浪费 token
-        3. 长度控制：总上下文不超过 max_context_chars（约 2000-3000 tokens）
-        4. 按分数排序：高相关度文档优先放入，保证回答质量
+        注意：阈值过滤、排序、去重已在 vector_service.search_with_sources 层完成，
+        本方法只负责长度控制和上下文拼接，避免重复处理。
 
         Args:
-            documents: 文档列表（带 score 的字典结构）
-            max_context_chars: 上下文最大字符数限制
+            documents: 文档列表（已过滤、已排序、已去重）
+            max_context_chars: 上下文最大字符数限制，默认使用配置值
 
         Returns:
             str: 拼接后的上下文（可能为空字符串）
@@ -108,33 +105,20 @@ class ChatService:
         if not documents:
             return ""
 
-        RELEVANCE_THRESHOLD = 0.3
+        effective_max_chars = max_context_chars if max_context_chars is not None else settings.RAG_MAX_CONTEXT_CHARS
 
-        filtered = [
-            doc for doc in documents
-            if doc.get("score", 0) >= RELEVANCE_THRESHOLD
-        ]
-
-        filtered.sort(key=lambda x: x.get("score", 0), reverse=True)
-
-        seen_hashes = set()
         context_parts = []
         total_chars = 0
 
-        for i, doc in enumerate(filtered, 1):
+        for i, doc in enumerate(documents, 1):
             content = doc.get("content", "")
             filename = doc.get("filename", "unknown")
-            content_hash = hash(content.strip()[:500])
-
-            if content_hash in seen_hashes:
-                continue
-            seen_hashes.add(content_hash)
 
             part = f"[文档 {i} - {filename}]:\n{content}"
             part_chars = len(part)
 
-            if total_chars + part_chars > max_context_chars:
-                remaining = max_context_chars - total_chars
+            if total_chars + part_chars > effective_max_chars:
+                remaining = effective_max_chars - total_chars
                 if remaining > 100:
                     truncated = part[:remaining - 3] + "..."
                     context_parts.append(truncated)
@@ -214,7 +198,7 @@ class ChatService:
             "source": "llm"
         }
 
-    def chat_with_sources(self, question: str, k: int = 8) -> dict:
+    def chat_with_sources(self, question: str, k: int = None) -> dict:
         """
         带来源引用的 RAG 问答
 
@@ -222,17 +206,20 @@ class ChatService:
         知识库为空时 sources=[], answer="知识库为空，请先上传文档。"
 
         优化策略：
-        - 动态 k 值：默认检索 8 条，通过 _build_context 的相关性过滤和长度控制筛选有效内容
-        - 只返回实际参与回答的来源（过滤后的文档）
+        - 阈值过滤、排序、去重在 vector_service.search_with_sources 层完成
+        - _build_context 只做长度控制，避免重复处理
+        - 返回的 sources 即为过滤后的结果
 
         Args:
             question: 用户问题
-            k: 初始检索的文档数量（会通过过滤/去重/长度控制进一步筛选）
+            k: 初始检索的文档数量，默认使用配置值
 
         Returns:
             dict: 包含 answer 和 sources 的字典
         """
-        sources = vector_store_service.search_with_sources(question, k=k)
+        effective_k = k if k is not None else settings.RAG_DEFAULT_K
+        sources = vector_store_service.search_with_sources(question, k=effective_k)
+
         if not sources:
             return {
                 "answer": "知识库为空，请先上传文档后再提问。",
@@ -250,16 +237,9 @@ class ChatService:
         prompt = self.PROMPT.format(context=context, question=question)
         response = self._get_llm().invoke(prompt)
 
-        RELEVANCE_THRESHOLD = 0.3
-        filtered_sources = [
-            s for s in sources
-            if s.get("score", 0) >= RELEVANCE_THRESHOLD
-        ]
-        filtered_sources.sort(key=lambda x: x.get("score", 0), reverse=True)
-
         return {
             "answer": response.content,
-            "sources": filtered_sources
+            "sources": sources
         }
 
 

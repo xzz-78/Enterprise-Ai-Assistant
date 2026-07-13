@@ -31,18 +31,44 @@ class VectorStoreService:
     """
     向量存储服务类
     负责文档的向量化、存储和检索
+
+    延迟初始化设计：
+    - __init__ 只初始化路径，不创建 embeddings 实例
+    - embeddings 实例在首次调用时通过 _get_embeddings() 懒加载创建
+    - 如果 OPENAI_API_KEY 缺失，不会导致应用启动崩溃
+    - 错误延迟到实际调用时抛出，便于捕获和处理
     """
 
     def __init__(self):
-        """初始化向量存储服务"""
+        """初始化向量存储服务（延迟初始化模式）"""
         self.index_path = settings.FAISS_INDEX_PATH
-        self.embeddings = OpenAIEmbeddings(
-            model=settings.EMBEDDING_MODEL,
-            openai_api_key=settings.OPENAI_API_KEY,
-            openai_api_base=settings.OPENAI_API_BASE,
-        )
+        self._embeddings = None
         self.vector_store: Optional[LangchainFAISS] = None
         self._load_or_create_index()
+
+    def _get_embeddings(self) -> OpenAIEmbeddings:
+        """
+        延迟获取 embeddings 实例
+
+        首次调用时创建 embeddings 实例，后续调用复用。
+        如果 OPENAI_API_KEY 缺失，会在调用时抛出错误，而非应用启动时。
+
+        Returns:
+            OpenAIEmbeddings: embeddings 实例
+
+        Raises:
+            ValueError: 如果 OPENAI_API_KEY 为空
+        """
+        if self._embeddings is None:
+            if not settings.OPENAI_API_KEY or settings.OPENAI_API_KEY == "sk-your-openai-api-key":
+                raise ValueError("OPENAI_API_KEY 未配置，请在 .env 文件中设置有效的 API Key")
+
+            self._embeddings = OpenAIEmbeddings(
+                model=settings.EMBEDDING_MODEL,
+                openai_api_key=settings.OPENAI_API_KEY,
+                openai_api_base=settings.OPENAI_API_BASE,
+            )
+        return self._embeddings
 
     def _load_or_create_index(self):
         """加载已有的 FAISS 索引，或创建新索引"""
@@ -52,7 +78,7 @@ class VectorStoreService:
         if os.path.exists(index_file) and os.path.exists(pkl_file):
             self.vector_store = LangchainFAISS.load_local(
                 self.index_path,
-                self.embeddings,
+                self._get_embeddings(),
                 allow_dangerous_deserialization=True
             )
         else:
@@ -109,6 +135,22 @@ class VectorStoreService:
                 if not chunk:
                     break
                 sha256.update(chunk)
+        return sha256.hexdigest()
+
+    def _compute_content_hash(self, content: str) -> str:
+        """
+        计算文本内容 SHA256 哈希，用于内容级去重
+
+        与 _compute_file_hash 保持一致的哈希算法，确保去重策略统一。
+
+        Args:
+            content: 文本内容
+
+        Returns:
+            str: 内容哈希值
+        """
+        sha256 = hashlib.sha256()
+        sha256.update(content.strip().encode("utf-8"))
         return sha256.hexdigest()
 
     def load_document(self, file_path: str, file_type: str) -> List[LangchainDocument]:
@@ -180,7 +222,7 @@ class VectorStoreService:
             try:
                 from langchain_experimental.text_splitter import SemanticChunker
                 semantic_splitter = SemanticChunker(
-                    self.embeddings,
+                    self._get_embeddings(),
                     breakpoint_threshold_type="percentile",
                     breakpoint_threshold_amount=75,
                 )
@@ -317,7 +359,7 @@ class VectorStoreService:
         if all_chunks:
             new_vector_store = LangchainFAISS.from_documents(
                 all_chunks,
-                self.embeddings,
+                self._get_embeddings(),
             )
             self._atomic_save_index(new_vector_store)
             self.vector_store = new_vector_store
@@ -402,7 +444,7 @@ class VectorStoreService:
         if remaining_docs:
             new_vector_store = LangchainFAISS.from_documents(
                 remaining_docs,
-                self.embeddings,
+                self._get_embeddings(),
             )
             self._atomic_save_index(new_vector_store)
             self.vector_store = new_vector_store
@@ -412,7 +454,13 @@ class VectorStoreService:
                 shutil.rmtree(self.index_path)
                 os.makedirs(self.index_path, exist_ok=True)
 
-    def search_with_sources(self, query: str, k: int = 4) -> List[Dict]:
+    def search_with_sources(
+        self,
+        query: str,
+        k: int = 8,
+        threshold: Optional[float] = None,
+        deduplicate: bool = True
+    ) -> List[Dict]:
         """
         带元数据与归一化分数的相似度检索
 
@@ -424,21 +472,53 @@ class VectorStoreService:
         }]
 
         归一化策略：FAISS L2 距离转相似度 = 1 / (1 + distance)
+
+        过滤策略：
+        - 阈值过滤：只保留 score >= threshold 的文档，threshold 为 None 时不过滤
+        - 内容去重：基于内容 SHA256 哈希去重，避免重复文档
+        - 排序：按相似度分数降序排列
+
+        Args:
+            query: 查询文本
+            k: 返回的结果数量（初始检索数量）
+            threshold: 相关性阈值，低于此值的文档被过滤，默认使用配置值
+            deduplicate: 是否进行内容去重
         """
         if self.vector_store is None:
             return []
+
+        effective_threshold = threshold if threshold is not None else settings.RAG_RELEVANCE_THRESHOLD
+
         raw = self.vector_store.similarity_search_with_score(query, k=k)
+
         results = []
         for doc, distance in raw:
             meta = doc.metadata or {}
             score = 1.0 / (1.0 + float(distance))
             score = round(score, 2)
+
+            if score < effective_threshold:
+                continue
+
             results.append({
                 "filename": meta.get("filename", "unknown"),
                 "document_id": int(meta.get("document_id", 0)),
                 "score": score,
                 "content": doc.page_content,
             })
+
+        results.sort(key=lambda x: x.get("score", 0), reverse=True)
+
+        if deduplicate:
+            seen_hashes = set()
+            unique_results = []
+            for item in results:
+                content_hash = self._compute_content_hash(item.get("content", "")[:500])
+                if content_hash not in seen_hashes:
+                    seen_hashes.add(content_hash)
+                    unique_results.append(item)
+            results = unique_results
+
         return results
 
 
