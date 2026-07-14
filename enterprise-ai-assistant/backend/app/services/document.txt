@@ -1,0 +1,4 @@
+1.trae已经修改了代码但是detail提示还是PDF和TXT
+2.save_upload_file函数中保存文件的操作存在可能发生的风险，如果os.remove失败可能会永久残留10mb的文件并且程序会崩溃，因为这个错误不能被Exception处理
+3.create_document_record已经commit而upload_document调用它然后出现错误会导致无法回滚
+4.delete_document中向量存储except Exception:	pass，但是如果前面的成功执行数据库没有数据而向量存储删除失败直接pass用户会以为成功删除

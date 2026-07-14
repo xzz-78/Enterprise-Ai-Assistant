@@ -1,0 +1,21 @@
+不应该只能从今日开始，可以从任意db存在数据的某天开始
+def _get_sales_data(self, db: Session, days: int) -> List[Sale]:
+        """
+        获取指定天数的销售数据
+
+        Args:
+            db: 数据库会话
+            days: 天数
+
+        Returns:
+            List[Sale]: 销售数据列表
+        """
+        end_date = date.today()
+        start_date = end_date - timedelta(days=days - 1)
+
+        sales = db.query(Sale).filter(
+            Sale.date >= start_date,
+            Sale.date <= end_date
+        ).order_by(Sale.date.asc()).all()
+
+        return sales
