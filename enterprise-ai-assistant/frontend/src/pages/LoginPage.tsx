@@ -3,6 +3,7 @@ import { useNavigate, Link } from 'react-router-dom'
 import { Bot, Loader2 } from 'lucide-react'
 import { useAuth } from '../hooks/useAuth'
 import { login as loginApi } from '../services/auth'
+import AnimatedBackground from '../components/AnimatedBackground'
 
 const LoginPage: React.FC = () => {
   const navigate = useNavigate()
@@ -29,60 +30,73 @@ const LoginPage: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-md w-full space-y-8">
+    <div className="min-h-screen flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8 relative overflow-hidden">
+      <AnimatedBackground />
+      
+      <div className="relative z-10 max-w-md w-full">
         {/* Logo 和标题 */}
-        <div className="text-center">
-          <div className="mx-auto w-16 h-16 bg-blue-600 rounded-2xl flex items-center justify-center mb-4">
-            <Bot className="w-10 h-10 text-white" />
+        <div className="text-center mb-8 animate-fade-in-up">
+          <div className="relative mx-auto w-20 h-20 mb-6">
+            <div className="absolute inset-0 gradient-primary rounded-2xl opacity-20 animate-pulse-slow" />
+            <div className="relative w-full h-full gradient-primary rounded-2xl flex items-center justify-center shadow-glow">
+              <Bot className="w-12 h-12 text-white" />
+            </div>
           </div>
-          <h2 className="mt-6 text-3xl font-extrabold text-gray-900">
+          <h2 className="text-3xl font-bold gradient-text mb-2">
             欢迎回来
           </h2>
-          <p className="mt-2 text-sm text-gray-600">
+          <p className="text-sm text-dark-300">
             登录企业级 AI 助手平台
           </p>
         </div>
 
         {/* 登录表单 */}
-        <form className="mt-8 space-y-6 bg-white p-8 rounded-2xl shadow-lg" onSubmit={handleSubmit}>
+        <form 
+          className="glass-card p-8 space-y-6 animate-fade-in-up animate-delay-100" 
+          onSubmit={handleSubmit}
+        >
           {error && (
-            <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">
+            <div className="bg-red-500/10 border border-red-500/30 text-red-300 px-4 py-3 rounded-xl text-sm flex items-center gap-2">
+              <span className="w-1.5 h-1.5 bg-red-400 rounded-full animate-pulse" />
               {error}
             </div>
           )}
 
-          <div className="space-y-4">
-            <div>
-              <label htmlFor="username" className="block text-sm font-medium text-gray-700 mb-1">
+          <div className="space-y-5">
+            <div className="space-y-2">
+              <label htmlFor="username" className="block text-sm font-medium text-dark-200">
                 用户名
               </label>
-              <input
-                id="username"
-                name="username"
-                type="text"
-                required
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all outline-none"
-                placeholder="请输入用户名"
-              />
+              <div className="relative">
+                <input
+                  id="username"
+                  name="username"
+                  type="text"
+                  required
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
+                  className="w-full px-4 py-3.5 bg-dark-800/50 border border-dark-600 rounded-xl text-dark-100 placeholder-dark-500 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/20 transition-all duration-300"
+                  placeholder="请输入用户名"
+                />
+              </div>
             </div>
 
-            <div>
-              <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1">
+            <div className="space-y-2">
+              <label htmlFor="password" className="block text-sm font-medium text-dark-200">
                 密码
               </label>
-              <input
-                id="password"
-                name="password"
-                type="password"
-                required
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all outline-none"
-                placeholder="请输入密码"
-              />
+              <div className="relative">
+                <input
+                  id="password"
+                  name="password"
+                  type="password"
+                  required
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="w-full px-4 py-3.5 bg-dark-800/50 border border-dark-600 rounded-xl text-dark-100 placeholder-dark-500 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/20 transition-all duration-300"
+                  placeholder="请输入密码"
+                />
+              </div>
             </div>
           </div>
 
@@ -90,7 +104,7 @@ const LoginPage: React.FC = () => {
             <button
               type="submit"
               disabled={loading}
-              className="w-full flex justify-center items-center gap-2 py-3 px-4 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              className="w-full gradient-primary py-3.5 rounded-xl text-white font-medium shadow-glow hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300 flex items-center justify-center gap-2"
             >
               {loading ? (
                 <>
@@ -103,17 +117,20 @@ const LoginPage: React.FC = () => {
             </button>
           </div>
 
-          <div className="text-center text-sm text-gray-600">
+          <div className="text-center text-sm text-dark-400 pt-2">
             还没有账号？{' '}
-            <Link to="/register" className="font-medium text-blue-600 hover:text-blue-500">
+            <Link 
+              to="/register" 
+              className="font-medium text-primary-400 hover:text-primary-300 transition-colors"
+            >
               立即注册
             </Link>
           </div>
         </form>
 
         {/* 提示信息 */}
-        <div className="text-center text-xs text-gray-500">
-          <p>默认测试账号：admin / admin123</p>
+        <div className="text-center text-xs text-dark-500 mt-6 animate-fade-in-up animate-delay-200">
+          <p>默认测试账号：<span className="text-dark-400 font-mono">admin</span> / <span className="text-dark-400 font-mono">admin123</span></p>
         </div>
       </div>
     </div>

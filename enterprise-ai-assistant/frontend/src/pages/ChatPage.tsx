@@ -18,11 +18,9 @@ const ChatPage: React.FC = () => {
   ])
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
-  // P3 新增：是否显示参考来源（默认开启）
   const [showSources, setShowSources] = useState(true)
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
-  // 自动滚动到底部
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }
@@ -47,7 +45,6 @@ const ChatPage: React.FC = () => {
 
     try {
       if (showSources) {
-        // P3：使用带来源接口
         const response = await chatWithSources(question)
         const assistantMessage: ExtendedChatMessage = {
           role: 'assistant',
@@ -57,7 +54,6 @@ const ChatPage: React.FC = () => {
         }
         setMessages((prev) => [...prev, assistantMessage])
       } else {
-        // 保留原有 chat 调用以保持兼容
         const response = await chatApi(question)
         const assistantMessage: ExtendedChatMessage = {
           role: 'assistant',
@@ -93,24 +89,22 @@ const ChatPage: React.FC = () => {
     })
   }
 
-  // 截断内容到 200 字
   const truncateContent = (text: string, max: number = 200) => {
     if (!text) return ''
     return text.length > max ? text.slice(0, max) + '...' : text
   }
 
-  // 渲染来源列表
   const renderSources = (sources: SourceItem[]) => {
     if (!sources || sources.length === 0) {
       return (
-        <div className="mt-3 pt-3 border-t border-gray-200">
-          <p className="text-xs text-gray-400 italic">暂无参考来源（知识库为空）</p>
+        <div className="mt-3 pt-3 border-t border-dark-600/50">
+          <p className="text-xs text-dark-500 italic">暂无参考来源（知识库为空）</p>
         </div>
       )
     }
     return (
-      <div className="mt-3 pt-3 border-t border-gray-200 space-y-2">
-        <div className="flex items-center gap-1.5 text-xs text-gray-500">
+      <div className="mt-3 pt-3 border-t border-dark-600/50 space-y-2">
+        <div className="flex items-center gap-1.5 text-xs text-dark-400">
           <BarChart2 className="w-3.5 h-3.5" />
           <span>参考来源（{sources.length}）</span>
         </div>
@@ -119,18 +113,18 @@ const ChatPage: React.FC = () => {
           return (
             <div
               key={`${s.document_id}-${idx}`}
-              className="bg-gray-50 border border-gray-200 rounded-lg p-2.5 text-xs"
+              className="bg-dark-800/60 border border-dark-600/40 rounded-xl p-3 text-xs"
             >
-              <div className="flex items-center justify-between gap-2 mb-1">
-                <div className="flex items-center gap-1.5 text-gray-700 font-medium min-w-0">
-                  <FileText className="w-3.5 h-3.5 flex-shrink-0" />
+              <div className="flex items-center justify-between gap-2 mb-1.5">
+                <div className="flex items-center gap-1.5 text-dark-200 font-medium min-w-0">
+                  <FileText className="w-3.5 h-3.5 flex-shrink-0 text-primary-400" />
                   <span className="truncate">{s.filename}</span>
                 </div>
-                <span className="text-blue-600 font-semibold flex-shrink-0">
+                <span className="text-primary-400 font-semibold flex-shrink-0">
                   相似度 {pct}%
                 </span>
               </div>
-              <p className="text-gray-600 leading-relaxed line-clamp-3">
+              <p className="text-dark-400 leading-relaxed line-clamp-3">
                 {truncateContent(s.content, 200)}
               </p>
             </div>
@@ -140,7 +134,6 @@ const ChatPage: React.FC = () => {
     )
   }
 
-  // 快捷问题
   const quickQuestions = [
     '公司请假制度是什么？',
     '如何申请报销？',
@@ -150,25 +143,26 @@ const ChatPage: React.FC = () => {
 
   return (
     <div className="h-full flex flex-col -m-8">
-      {/* 页面标题 */}
-      <div className="px-8 py-4 bg-white border-b border-gray-200">
+      <div className="px-8 py-4 bg-dark-700/80 border-b border-dark-600/50 backdrop-blur-sm">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-xl font-bold text-gray-900">AI 智能问答</h1>
-            <p className="text-sm text-gray-500 mt-1">
+            <h1 className="text-xl font-bold text-dark-100 flex items-center gap-2">
+              <Bot className="w-6 h-6 text-primary-400" />
+              AI 智能问答
+            </h1>
+            <p className="text-sm text-dark-400 mt-1">
               基于企业知识库的智能问答系统，帮您快速获取所需信息
             </p>
           </div>
-          {/* P3 新增：显示参考来源开关 */}
           <label className="flex items-center gap-2 cursor-pointer select-none">
-            <span className="text-sm text-gray-700">显示参考来源</span>
+            <span className="text-sm text-dark-300">显示参考来源</span>
             <button
               type="button"
               role="switch"
               aria-checked={showSources}
               onClick={() => setShowSources((v) => !v)}
               className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                showSources ? 'bg-blue-600' : 'bg-gray-300'
+                showSources ? 'bg-primary-500' : 'bg-dark-600'
               }`}
             >
               <span
@@ -181,51 +175,50 @@ const ChatPage: React.FC = () => {
         </div>
       </div>
 
-      {/* 聊天消息区域 */}
       <div className="flex-1 overflow-y-auto p-6 space-y-4">
         {messages.map((message, index) => (
           <div
             key={index}
-            className={`flex gap-3 ${message.role === 'user' ? 'flex-row-reverse' : ''}`}
+            className={`flex gap-3 animate-fade-in-up ${message.role === 'user' ? 'flex-row-reverse' : ''}`}
+            style={{ animationDelay: `${index * 50}ms` }}
           >
-            {/* 头像 */}
             <div
               className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 ${
-                message.role === 'user' ? 'bg-blue-600' : 'bg-gray-100'
+                message.role === 'user' 
+                  ? 'gradient-primary' 
+                  : 'bg-dark-600/60'
               }`}
             >
               {message.role === 'user' ? (
                 <User className="w-5 h-5 text-white" />
               ) : (
-                <Bot className="w-5 h-5 text-gray-600" />
+                <Bot className="w-5 h-5 text-primary-400" />
               )}
             </div>
 
-            {/* 消息内容 */}
             <div className={`max-w-2xl ${message.role === 'user' ? 'text-right' : ''}`}>
               <div
-                className={`inline-block px-4 py-3 rounded-2xl text-left ${
+                className={`inline-block px-5 py-3 rounded-2xl text-left ${
                   message.role === 'user'
-                    ? 'bg-blue-600 text-white rounded-tr-sm'
-                    : 'bg-white border border-gray-200 text-gray-800 rounded-tl-sm shadow-sm'
+                    ? 'gradient-primary text-white rounded-tr-sm'
+                    : 'bg-dark-700/60 border border-dark-600/40 text-dark-100 rounded-tl-sm'
                 }`}
               >
                 <p className="whitespace-pre-wrap text-sm leading-relaxed">
                   {message.content}
                 </p>
-                {/* P3 新增：来源列表（仅在开启时、且 assistant 消息时显示） */}
                 {message.role === 'assistant' && showSources && message.sources !== undefined && (
                   renderSources(message.sources)
                 )}
               </div>
-              <div className="mt-1 flex items-center gap-2">
-                <span className="text-xs text-gray-400">{formatTime(message.timestamp)}</span>
+              <div className="mt-1.5 flex items-center gap-2">
+                <span className="text-xs text-dark-500">{formatTime(message.timestamp)}</span>
                 {message.role === 'assistant' && message.source && (
                   <span
                     className={`text-xs px-2 py-0.5 rounded-full ${
                       message.source === 'rag'
-                        ? 'bg-blue-100 text-blue-600'
-                        : 'bg-gray-100 text-gray-500'
+                        ? 'bg-primary-500/20 text-primary-400'
+                        : 'bg-dark-600/50 text-dark-400'
                     }`}
                   >
                     {message.source === 'rag' ? '基于知识库' : '基于通用知识'}
@@ -236,16 +229,15 @@ const ChatPage: React.FC = () => {
           </div>
         ))}
 
-        {/* 加载中 */}
         {loading && (
-          <div className="flex gap-3">
-            <div className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center flex-shrink-0">
-              <Bot className="w-5 h-5 text-gray-600" />
+          <div className="flex gap-3 animate-fade-in-up">
+            <div className="w-10 h-10 rounded-full bg-dark-600/60 flex items-center justify-center flex-shrink-0">
+              <Bot className="w-5 h-5 text-primary-400" />
             </div>
-            <div className="bg-white border border-gray-200 px-4 py-3 rounded-2xl rounded-tl-sm shadow-sm">
+            <div className="bg-dark-700/60 border border-dark-600/40 px-5 py-3 rounded-2xl rounded-tl-sm">
               <div className="flex items-center gap-2">
-                <Loader2 className="w-5 h-5 text-blue-600 animate-spin" />
-                <span className="text-sm text-gray-500">正在思考中...</span>
+                <Loader2 className="w-5 h-5 text-primary-500 animate-spin" />
+                <span className="text-sm text-dark-400">正在思考中...</span>
               </div>
             </div>
           </div>
@@ -254,16 +246,15 @@ const ChatPage: React.FC = () => {
         <div ref={messagesEndRef} />
       </div>
 
-      {/* 快捷问题（只有一条消息时显示） */}
       {messages.length <= 1 && (
         <div className="px-6 pb-4">
-          <p className="text-sm text-gray-500 mb-3">快捷问题：</p>
+          <p className="text-sm text-dark-400 mb-3">快捷问题：</p>
           <div className="flex flex-wrap gap-2">
             {quickQuestions.map((question, index) => (
               <button
                 key={index}
                 onClick={() => setInput(question)}
-                className="px-4 py-2 bg-white border border-gray-200 rounded-full text-sm text-gray-600 hover:bg-gray-50 hover:border-blue-300 hover:text-blue-600 transition-colors"
+                className="px-4 py-2 bg-dark-700/60 border border-dark-600/40 rounded-full text-sm text-dark-300 hover:border-primary-500/50 hover:text-primary-400 hover:bg-dark-600/40 transition-all duration-200"
               >
                 {question}
               </button>
@@ -272,8 +263,7 @@ const ChatPage: React.FC = () => {
         </div>
       )}
 
-      {/* 输入区域 */}
-      <div className="p-6 bg-white border-t border-gray-200">
+      <div className="p-6 bg-dark-700/80 border-t border-dark-600/50 backdrop-blur-sm">
         <div className="max-w-4xl mx-auto">
           <div className="flex gap-3 items-end">
             <div className="flex-1 relative">
@@ -283,19 +273,19 @@ const ChatPage: React.FC = () => {
                 onKeyPress={handleKeyPress}
                 placeholder="请输入您的问题，按 Enter 发送..."
                 rows={1}
-                className="w-full px-4 py-3 pr-12 border border-gray-300 rounded-xl resize-none focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all"
+                className="w-full px-4 py-3 pr-12 bg-dark-800/60 border border-dark-600/50 rounded-xl resize-none text-dark-100 placeholder-dark-500 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/20 transition-all"
                 style={{ minHeight: '50px', maxHeight: '150px' }}
               />
             </div>
             <button
               onClick={handleSend}
               disabled={!input.trim() || loading}
-              className="p-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
+              className="p-3 gradient-primary text-white rounded-xl hover:opacity-90 disabled:bg-dark-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-glow"
             >
               <Send className="w-5 h-5" />
             </button>
           </div>
-          <p className="text-xs text-gray-400 mt-2 text-center">
+          <p className="text-xs text-dark-500 mt-2 text-center">
             AI 回答基于知识库内容生成，仅供参考
           </p>
         </div>
