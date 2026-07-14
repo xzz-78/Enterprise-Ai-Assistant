@@ -51,6 +51,42 @@ def migrate_sales_table():
         print(f"   ✓ 自动迁移：已为 sales 表补充列 {', '.join(added)}")
 
 
+def migrate_users_table():
+    """
+    自动迁移：检查 users 表是否缺少安全相关字段，
+    缺失时通过 ALTER TABLE 补列。
+
+    新增字段：
+    - is_active: 用户状态（1-正常，0-禁用）
+    - login_fail_count: 连续登录失败次数
+    - locked_until: 账户锁定结束时间
+    - last_login_attempt: 上次登录尝试时间
+    """
+    inspector = inspect(engine)
+    if "users" not in inspector.get_table_names():
+        return  # 表尚未创建，create_all 会负责建表
+
+    existing_columns = {col["name"] for col in inspector.get_columns("users")}
+
+    migrations = [
+        ("is_active", "INT DEFAULT 1 COMMENT '用户状态：1-正常，0-禁用'"),
+        ("login_fail_count", "INT DEFAULT 0 COMMENT '连续登录失败次数'"),
+        ("locked_until", "DATETIME NULL COMMENT '账户锁定结束时间'"),
+        ("last_login_attempt", "DATETIME NULL COMMENT '上次登录尝试时间'"),
+    ]
+
+    added = []
+    with engine.connect() as conn:
+        for col_name, col_def in migrations:
+            if col_name not in existing_columns:
+                conn.execute(text(f"ALTER TABLE users ADD COLUMN {col_name} {col_def}"))
+                conn.commit()
+                added.append(col_name)
+
+    if added:
+        print(f"   ✓ 自动迁移：已为 users 表补充列 {', '.join(added)}")
+
+
 def init_database():
     """初始化数据库"""
     print("=" * 60)
@@ -62,8 +98,9 @@ def init_database():
     Base.metadata.create_all(bind=engine)
     print("   ✓ 数据库表创建成功")
 
-    # 自动迁移：为旧表补充缺失列（region / product_category）
+    # 自动迁移：为旧表补充缺失列
     migrate_sales_table()
+    migrate_users_table()
 
     # 创建默认管理员用户
     print("\n2. 创建默认管理员用户...")

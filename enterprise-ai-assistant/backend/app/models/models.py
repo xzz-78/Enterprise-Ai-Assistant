@@ -21,6 +21,12 @@ class User(Base):
     password_hash = Column(String(255), nullable=False, comment="密码哈希")
     created_at = Column(DateTime, default=datetime.utcnow, comment="创建时间")
 
+    # 安全相关字段
+    is_active = Column(Integer, default=1, comment="用户状态：1-正常，0-禁用")
+    login_fail_count = Column(Integer, default=0, comment="连续登录失败次数")
+    locked_until = Column(DateTime, nullable=True, comment="账户锁定结束时间")
+    last_login_attempt = Column(DateTime, nullable=True, comment="上次登录尝试时间")
+
     # 关系：用户上传的文档
     documents = relationship("Document", back_populates="uploader", cascade="all, delete-orphan")
 
