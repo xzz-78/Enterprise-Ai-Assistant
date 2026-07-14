@@ -12,12 +12,9 @@ import { generateBusinessReport } from '../services/report'
 import type { BusinessInsightReport } from '../types'
 
 const ReportPage: React.FC = () => {
-  // P2 扩展：业务分析师报告状态
   const [report, setReport] = useState<BusinessInsightReport | null>(null)
   const [loading, setLoading] = useState(false)
-  // 分析窗口下拉值，默认 30 天
   const [days, setDays] = useState(30)
-  // 错误提示
   const [errorMsg, setErrorMsg] = useState<string | null>(null)
 
   const handleGenerateReport = async () => {
@@ -35,29 +32,27 @@ const ReportPage: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      {/* 页面标题（保留原结构） */}
       <div>
-        <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-          <Sparkles className="w-6 h-6 text-blue-600" />
+        <h1 className="text-2xl font-bold text-dark-100 flex items-center gap-2">
+          <Sparkles className="w-6 h-6 text-primary-400" />
           AI 分析报告
         </h1>
-        <p className="mt-1 text-sm text-gray-500">
+        <p className="mt-1 text-sm text-dark-400">
           基于销售数据自动生成结构化业务分析报告（执行摘要 + 关键洞察 + 行动建议）
         </p>
       </div>
 
-      {/* 控制区：分析窗口下拉 + 主按钮 */}
-      <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
+      <div className="glass-card p-6">
         <div className="flex flex-wrap items-end gap-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-sm font-medium text-dark-300 mb-2">
               分析窗口
             </label>
             <select
               value={days}
               onChange={(e) => setDays(Number(e.target.value))}
               disabled={loading}
-              className="px-4 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none disabled:opacity-50"
+              className="px-4 py-2 bg-dark-800/60 border border-dark-600/50 rounded-xl text-sm text-dark-200 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/20 transition-all disabled:opacity-50"
             >
               <option value={7}>最近 7 天</option>
               <option value={30}>最近 30 天</option>
@@ -68,7 +63,7 @@ const ReportPage: React.FC = () => {
             <button
               onClick={handleGenerateReport}
               disabled={loading}
-              className="flex items-center gap-2 px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              className="flex items-center gap-2 px-6 py-2.5 gradient-primary text-white rounded-xl hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-glow"
             >
               {loading ? (
                 <Loader2 className="w-5 h-5 animate-spin" />
@@ -80,65 +75,65 @@ const ReportPage: React.FC = () => {
           </div>
         </div>
         {errorMsg && (
-          <div className="mt-4 flex items-start gap-2 p-3 bg-red-50 border border-red-100 rounded-lg text-sm text-red-700">
+          <div className="mt-4 flex items-start gap-2 p-3 bg-red-500/10 border border-red-500/30 rounded-xl text-sm text-red-300">
             <AlertCircle className="w-4 h-4 mt-0.5 flex-shrink-0" />
             <span>{errorMsg}</span>
           </div>
         )}
       </div>
 
-      {/* Loading 状态：首次加载且无报告 */}
       {loading && !report && (
-        <div className="bg-white rounded-xl p-12 shadow-sm border border-gray-100">
+        <div className="glass-card p-12">
           <div className="flex flex-col items-center">
-            <Loader2 className="w-12 h-12 text-blue-600 animate-spin mb-4" />
-            <p className="text-lg text-gray-600">正在生成业务分析报告...</p>
-            <p className="text-sm text-gray-400 mt-2">
+            <div className="relative">
+              <Loader2 className="w-12 h-12 text-primary-500 animate-spin mb-4" />
+              <div className="absolute inset-0 w-12 h-12 border-2 border-primary-500/20 rounded-full animate-ping" />
+            </div>
+            <p className="text-lg text-dark-200">正在生成业务分析报告...</p>
+            <p className="text-sm text-dark-400 mt-2">
               AI 正在执行 SQL 聚合并撰写分析，请稍候
             </p>
           </div>
         </div>
       )}
 
-      {/* 空状态：未点击生成 */}
       {!report && !loading && (
-        <div className="bg-white rounded-xl p-12 shadow-sm border border-gray-100 text-center">
-          <FileText className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-          <p className="text-gray-500 mb-2">
+        <div className="glass-card p-12 text-center">
+          <div className="w-20 h-20 mx-auto mb-6 rounded-full bg-dark-600/50 flex items-center justify-center">
+            <FileText className="w-10 h-10 text-dark-400" />
+          </div>
+          <p className="text-dark-300 mb-2">
             点击「生成本月经营报告」，AI 将自动分析销售数据并生成报告
           </p>
-          <p className="text-sm text-gray-400">
+          <p className="text-sm text-dark-500">
             报告将包含：执行摘要（summary）、关键洞察（insights）与行动建议（suggestions）
           </p>
         </div>
       )}
 
-      {/* 三段式报告内容 */}
       {report && (
         <div className="space-y-6">
-          {/* 第一段：执行摘要（蓝色高亮卡片） */}
-          <div className="bg-white rounded-xl p-6 shadow-sm border border-blue-100">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-              <FileText className="w-5 h-5 text-blue-600" />
+          <div className="glass-card p-6 border-l-4 border-primary-500">
+            <h2 className="text-lg font-semibold text-dark-100 mb-4 flex items-center gap-2">
+              <FileText className="w-5 h-5 text-primary-400" />
               执行摘要
             </h2>
-            <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-6 border border-blue-100">
+            <div className="bg-primary-500/5 rounded-xl p-6 border border-primary-500/10">
               {report.summary ? (
-                <p className="text-gray-800 leading-relaxed whitespace-pre-wrap">
+                <p className="text-dark-200 leading-relaxed whitespace-pre-wrap">
                   {report.summary}
                 </p>
               ) : (
-                <p className="text-gray-400 italic">暂无执行摘要。</p>
+                <p className="text-dark-500 italic">暂无执行摘要。</p>
               )}
             </div>
           </div>
 
-          {/* 第二段：关键洞察（编号列表 + 图标） */}
-          <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-              <Lightbulb className="w-5 h-5 text-yellow-500" />
+          <div className="glass-card p-6">
+            <h2 className="text-lg font-semibold text-dark-100 mb-4 flex items-center gap-2">
+              <Lightbulb className="w-5 h-5 text-amber-400" />
               关键洞察
-              <span className="ml-auto text-xs font-normal text-gray-400">
+              <span className="ml-auto text-xs font-normal text-dark-500">
                 {report.insights?.length ?? 0} 条
               </span>
             </h2>
@@ -147,27 +142,31 @@ const ReportPage: React.FC = () => {
                 {report.insights.map((insight, index) => (
                   <div
                     key={index}
-                    className="flex items-start gap-3 p-4 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors"
+                    className="flex items-start gap-3 p-4 bg-dark-600/20 rounded-xl hover:bg-dark-600/30 transition-all duration-200 animate-fade-in-up"
+                    style={{ animationDelay: `${index * 100}ms` }}
                   >
-                    <div className="w-7 h-7 bg-yellow-500 text-white rounded-full flex items-center justify-center text-sm font-medium flex-shrink-0">
+                    <div className="w-7 h-7 gradient-primary rounded-full flex items-center justify-center text-sm font-medium text-white flex-shrink-0">
                       {index + 1}
                     </div>
-                    <Lightbulb className="w-4 h-4 text-yellow-500 mt-2 flex-shrink-0" />
-                    <p className="text-gray-700 pt-1 leading-relaxed">{insight}</p>
+                    <div className="flex-1">
+                      <div className="flex items-start gap-2">
+                        <Lightbulb className="w-4 h-4 text-amber-400 mt-1 flex-shrink-0" />
+                        <p className="text-dark-200 leading-relaxed">{insight}</p>
+                      </div>
+                    </div>
                   </div>
                 ))}
               </div>
             ) : (
-              <p className="text-gray-400 italic text-sm">暂无关键洞察。</p>
+              <p className="text-dark-500 italic text-sm">暂无关键洞察。</p>
             )}
           </div>
 
-          {/* 第三段：行动建议（编号列表 + 图标） */}
-          <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-              <ListChecks className="w-5 h-5 text-green-500" />
+          <div className="glass-card p-6">
+            <h2 className="text-lg font-semibold text-dark-100 mb-4 flex items-center gap-2">
+              <ListChecks className="w-5 h-5 text-emerald-400" />
               行动建议
-              <span className="ml-auto text-xs font-normal text-gray-400">
+              <span className="ml-auto text-xs font-normal text-dark-500">
                 {report.suggestions?.length ?? 0} 条
               </span>
             </h2>
@@ -176,18 +175,23 @@ const ReportPage: React.FC = () => {
                 {report.suggestions.map((suggestion, index) => (
                   <div
                     key={index}
-                    className="flex items-start gap-3 p-4 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors"
+                    className="flex items-start gap-3 p-4 bg-dark-600/20 rounded-xl hover:bg-dark-600/30 transition-all duration-200 animate-fade-in-up"
+                    style={{ animationDelay: `${index * 100}ms` }}
                   >
-                    <div className="w-7 h-7 bg-green-500 text-white rounded-full flex items-center justify-center text-sm font-medium flex-shrink-0">
+                    <div className="w-7 h-7 gradient-accent rounded-full flex items-center justify-center text-sm font-medium text-white flex-shrink-0">
                       {index + 1}
                     </div>
-                    <TrendingUp className="w-4 h-4 text-green-500 mt-2 flex-shrink-0" />
-                    <p className="text-gray-700 pt-1 leading-relaxed">{suggestion}</p>
+                    <div className="flex-1">
+                      <div className="flex items-start gap-2">
+                        <TrendingUp className="w-4 h-4 text-emerald-400 mt-1 flex-shrink-0" />
+                        <p className="text-dark-200 leading-relaxed">{suggestion}</p>
+                      </div>
+                    </div>
                   </div>
                 ))}
               </div>
             ) : (
-              <p className="text-gray-400 italic text-sm">暂无行动建议。</p>
+              <p className="text-dark-500 italic text-sm">暂无行动建议。</p>
             )}
           </div>
         </div>
